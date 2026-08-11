@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenSplat3DTrainer_Launcher</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 首次启动：先选显存模式再进主界面 -->
+  <div id="setupOverlay" class="setup hidden">
+    <div class="setup-box">
+      <h1 class="setup-title">OpenSplat3DTrainer</h1>
+      <p class="setup-desc">首次启动，请选择显存模式<br>（之后可在「显存」面板修改）</p>
+      <div class="setup-actions">
+        <button id="setupHigh" class="btn btn-cta setup-btn">高显存模式<br><small>模型常驻 · 速度快（≥10GB 显存）</small></button>
+        <button id="setupLow" class="btn btn-ghost setup-btn">低显存模式<br><small>按需加载 · 省显存（<10GB）</small></button>
+      </div>
+      <p id="setupStatus" class="setup-status"></p>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">OpenSplat3DTrainer</span>
+      <span class="brand-sub">LOCAL 3DGS STUDIO</span>
+    </div>
+    <div class="top-status">
+      <span id="cudaStatus" class="chip">--</span>
+      <span id="vramStatus" class="chip">--</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="viewport-pane">
+      <div id="viewport" class="viewport">
+        <div id="viewer"></div>
+        <div class="view-tools">
+          <button class="vt-btn" data-view="front">前</button>
+          <button class="vt-btn" data-view="left">左</button>
+          <button class="vt-btn" data-view="top">顶</button>
+          <button class="vt-btn" data-view="persp">透视</button>
+          <span class="vt-sep"></span>
+          <button class="vt-btn" id="btnGrid">网格</button>
+          <button class="vt-btn" id="btnReset">归位</button>
+          <button class="vt-btn" id="btnFlip" title="上下翻转模型（纠正 -Y up 的 PLY）">翻转</button>
+          <span class="vt-sep"></span>
+          <button class="vt-btn" id="btnOpenPly">导入PLY</button>
+        </div>
+        <div class="hud hud-tl">
+          <span class="hud-dot" id="hudState"></span>
+          <span id="hudStateText">STANDBY</span>
+        </div>
+        <div class="hud hud-tr" id="hudModel">NO MODEL LOADED</div>
+        <div class="hud hud-bl">LMB ROTATE &middot; WHEEL ZOOM &middot; RMB PAN</div>
+        <div class="hud hud-br" id="hudCount">&mdash;</div>
+      </div>
+    </section>
+
+    <aside class="console-pane">
+      <!-- 左列：任务队列（新增栏：选择任务后编辑各自参数） -->
+      <div class="col-queue">
+        <section class="module">
+          <h2 class="module-title"><span class="num">01</span>任务队列</h2>
+          <button id="btnPick" class="btn btn-primary">＋ 添加图片&hellip;</button>
+          <p class="hint">可多选，或将图片直接拖入窗口<br>同一图片可添加多次、分别调参生成</p>
+          <div id="taskList" class="list list-tasks"></div>
+        </section>
+        <section class="module module-foot">
+          <button id="btnStart" class="btn btn-cta">开始生成</button>
+          <button id="btnClear" class="btn btn-ghost">清空已完成</button>
+        </section>
+      </div>
+
+      <!-- 右列：输入 + 参数（选中任务的参数 / 默认参数） -->
+      <div class="col-param">
+        <section class="module">
+          <h2 class="module-title">
+            <span class="num">02</span>参数
+            <span id="paramScope" class="param-scope">默认</span>
+          </h2>
+          <p id="paramHint" class="hint">未选择任务时编辑默认参数，新任务继承；选中任务后此处调整该任务自己的参数。</p>
+          <div id="paramBox" class="param-box">
+            <div class="field">
+              <label>输入分辨率 <output id="imgResOut">1024</output></label>
+              <select id="imgRes">
+                <option value="512">512 &middot; 快速</option>
+                <option value="768">768</option>
+                <option value="1024" selected>1024 &middot; 默认</option>
+                <option value="1536">1536 &middot; 精细</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>抠图分辨率 <output id="rmbgOut">1024</output></label>
+              <select id="rmbgRes">
+                <option value="512">512</option>
+                <option value="768">768</option>
+                <option value="1024" selected>1024</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>采样步数 <output id="stepsOut">20</output></label>
+              <input type="range" id="steps" min="5" max="40" value="20">
+            </div>
+            <div class="field">
+              <label>引导强度 <output id="guidanceOut">3.0</output></label>
+              <input type="range" id="guidance" min="5" max="100" step="5" value="30">
+            </div>
+            <div class="field">
+              <label>时间偏移 <output id="shiftOut">3.0</output></label>
+              <input type="range" id="shift" min="10" max="100" step="5" value="30">
+            </div>
+            <div class="field">
+              <label>随机种子 <output id="seedOut">42</output></label>
+              <div class="seed-row">
+                <input type="range" id="seed" min="0" max="99999" value="42">
+                <button id="btnSeedRand" class="mini-btn">随机</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>高斯数量 <output id="numOut">262,144</output></label>
+              <select id="num">
+                <option value="16384">16,384</option>
+                <option value="32768">32,768</option>
+                <option value="65536">65,536</option>
+                <option value="131072">131,072</option>
+                <option value="262144" selected>262,144</option>
+              </select>
+            </div>
+            <div class="param-actions">
+              <button id="btnDup" class="btn btn-primary">复制任务</button>
+              <button id="btnRemove" class="btn btn-ghost danger">移除任务</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="module">
+          <h2 class="module-title"><span class="num">03</span>输出设置</h2>
+          <div class="field">
+            <label>输出目录</label>
+            <input type="text" id="outDir" value="output" spellcheck="false">
+          </div>
+          <label class="check"><input type="checkbox" id="savePly" checked> 保存 PLY</label>
+          <label class="check"><input type="checkbox" id="saveSplat"> 保存 SPLAT</label>
+        </section>
+
+        <section class="module">
+          <h2 class="module-title"><span class="num">04</span>显存</h2>
+          <div class="field">
+            <label>显存模式</label>
+            <select id="vramMode">
+              <option value="high">高显存（模型常驻）</option>
+              <option value="low">低显存（按需加载）</option>
+            </select>
+          </div>
+          <div class="vram-wrap">
+            <div class="vram-track"><div id="vramBar" class="vram-bar"></div></div>
+            <div class="vram-readout"><span id="vramText">--</span></div>
+          </div>
+        </section>
+
+        <section class="module">
+          <h2 class="module-title"><span class="num">05</span>渲染</h2>
+          <div class="field">
+            <label>平滑度 <output id="rStdOut">4.0</output></label>
+            <input type="range" id="rStd" min="20" max="60" step="5" value="40">
+            <p class="hint">高斯衰减半径，越大越平滑（也越费显卡）</p>
+          </div>
+          <div class="field">
+            <label>渲染分辨率 <output id="rPxOut">2.5x</output></label>
+            <select id="rPx">
+              <option value="1">1x &middot; 快</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2x</option>
+              <option value="2.5" selected>2.5x &middot; 默认</option>
+              <option value="3">3x &middot; 精细</option>
+            </select>
+            <p class="hint">超采样倍数，越高越清晰（更吃显卡）</p>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="logbar">
+    <div id="logList" class="log-list"></div>
+    <div class="log-ctrl">
+      <label class="check"><input type="checkbox" id="logAuto" checked> 自动滚动</label>
+      <input type="text" id="logFilter" placeholder="过滤&hellip;" spellcheck="false">
+    </div>
+  </footer>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- 全局 JS 错误捕获 → 日志（诊断） -->
+  <script>
+  window.addEventListener("error", function (e) {
+    if (window.chrome && window.chrome.webview) {
+      try {
+        window.chrome.webview.postMessage({
+          event: "log",
+          text: "JS错误: " + (e.message || "unknown") + " @ " + (e.filename || "") + ":" + (e.lineno || 0),
+          err: true
+        });
+      } catch (_) {}
+    }
+  }, true);
+  </script>
+  <script>
+  // viewer.js（module script）加载失败时上报
+  window.__viewerError = function () {
+    if (window.chrome && window.chrome.webview) {
+      try { window.chrome.webview.postMessage({ event: "log", text: "viewer.js script 加载失败(onerror)", err: true }); } catch (_) {}
+    }
+  };
+  </script>
+  <script type="module" src="js/viewer.js" onerror="__viewerError()"></script>
+  <script type="module" src="js/app.js"></script>
+  <!-- 加载诊断：各模块可获取 + module 机制 -->
+  <script type="module">
+  (async () => {
+    const rep = async (n) => {
+      try {
+        const r = await fetch(n);
+        const t = await r.text();
+        const ct = r.headers.get("content-type") || "";
+        return n + " " + r.status + "[" + ct + "] " + (t.length / 1024).toFixed(0) + "KB";
+      } catch (e) { return n + " FETCH_FAIL " + e.message; }
+    };
+    const out = [];
+    out.push(await rep("js/viewer.js"));
+    out.push(await rep("vendor/three/three.module.js"));
+    out.push(await rep("vendor/three/addons/postprocessing/Pass.js"));
+    out.push(await rep("vendor/Spark/spark.module.js"));
+    try { await import("data:text/javascript,window.__dt%3D1"); out.push("module机制 OK"); }
+    catch (e) { out.push("module机制 FAIL " + e.message); }
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage({ event: "log", text: "加载诊断: " + out.join(" | "), err: false });
+    }
+  })();
+  </script>
+</body>
+</html>

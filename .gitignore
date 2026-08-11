@@ -1,0 +1,40 @@
+# 非 MIT 许可组件：WebView2 SDK（微软宽松许可），由 scripts/fetch_webview2.ps1 从 NuGet 拉取
+launcher/third_party/webview2/
+# 源码映射（体积大，运行时不需要）
+*.map
+app/build/
+launcher/build/
+*.obj
+*.pdb
+*.ilk
+*.exp
+output/
+models/
+*.pt
+*.log
+log.txt
+nav_error.txt
+vram_trace.txt
+build_log.txt
+build_err.txt
+export_log.txt
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+build.ninja
+compile_commands.json
+.vs/
+.vscode/
+*.vcxproj.user
+vcpkg_installed/
+vcpkg-manifest-install.log
+__pycache__/
+*.pyc
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ---- 就不给你们看的 ---
+docs
+claude.md
